@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <group
+        android:pivotX="57"
+        android:pivotY="54"
+        android:scaleX="0.80"
+        android:scaleY="0.80"
+        android:translateX="-3"
+        android:translateY="0">
+
+        <!-- Left outer weight -->
+        <path
+            android:fillColor="#E9A23B"
+            android:pathData="
+                M24,39
+                C21.8,39 20,40.8 20,43
+                L20,65
+                C20,67.2 21.8,69 24,69
+                L27,69
+                L27,39
+                Z" />
+
+        <!-- Left inner weight -->
+        <path
+            android:fillColor="#E9A23B"
+            android:pathData="
+                M30,34
+                C27.8,34 26,35.8 26,38
+                L26,70
+                C26,72.2 27.8,74 30,74
+                L34,74
+                L34,34
+                Z" />
+
+        <!-- Dumbbell bar -->
+        <path
+            android:fillColor="#E9A23B"
+            android:pathData="
+                M33,48
+                L75,48
+                C77.2,48 79,49.8 79,52
+                L79,56
+                C79,58.2 77.2,60 75,60
+                L33,60
+                Z" />
+
+        <!-- Right main plate / stylized weight -->
+        <path
+            android:fillColor="#E9A23B"
+            android:pathData="
+                M77,36
+                L83,36
+                L87,42
+                L87,66
+                L83,72
+                L77,72
+                L73,66
+                L73,42
+                Z" />
+
+        <!-- Right center cutout -->
+        <path
+            android:fillColor="#0E1726"
+            android:pathData="
+                M79.5,45
+                C78.1,45 77,46.1 77,47.5
+                L77,60.5
+                C77,61.9 78.1,63 79.5,63
+                C80.9,63 82,61.9 82,60.5
+                L82,47.5
+                C82,46.1 80.9,45 79.5,45
+                Z" />
+
+        <!-- Top accent -->
+        <path
+            android:fillColor="#E9A23B"
+            android:pathData="
+                M79.8,28
+                L82.8,34
+                L76.8,34
+                Z" />
+
+        <!-- Bottom accent -->
+        <path
+            android:fillColor="#E9A23B"
+            android:pathData="
+                M79.8,80
+                L76.8,74
+                L82.8,74
+                Z" />
+
+        <!-- Right outer cap -->
+        <path
+            android:fillColor="#E9A23B"
+            android:pathData="
+                M87,47
+                L90,47
+                C92.2,47 94,48.8 94,51
+                L94,57
+                C94,59.2 92.2,61 90,61
+                L87,61
+                Z" />
+
+    </group>
+
+</vector>

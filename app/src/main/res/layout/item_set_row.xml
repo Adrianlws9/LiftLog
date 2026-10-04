@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingVertical="8dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/setNumberText"
+            android:layout_width="28dp"
+            android:layout_height="wrap_content"
+            android:text="1"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:fontFamily="@font/bricolage_grotesque" />
+
+        <EditText
+            android:id="@+id/weightInput"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="8dp"
+            android:hint="Weight"
+            android:inputType="numberDecimal"
+            android:minHeight="48dp"
+            android:imeOptions="actionDone"
+            android:fontFamily="@font/bricolage_grotesque" />
+
+        <Spinner
+            android:id="@+id/unitSpinner"
+            android:layout_width="100dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp" />
+
+        <EditText
+            android:id="@+id/repsInput"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="4dp"
+            android:hint="Reps"
+            android:inputType="number"
+            android:imeOptions="actionDone"
+            android:minHeight="48dp"
+            android:fontFamily="@font/bricolage_grotesque" />
+
+        <ImageButton
+            android:id="@+id/removeSetButton"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@android:color/transparent"
+            android:src="@android:drawable/ic_menu_close_clear_cancel"
+            android:contentDescription="Remove set" />
+
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/setDiffText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="28dp"
+        android:textSize="12sp"
+        android:fontFamily="@font/bricolage_grotesque"
+        android:visibility="gone" />
+
+</LinearLayout>

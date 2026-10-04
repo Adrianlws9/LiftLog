@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="@color/surface"
+    android:padding="16dp"
+    android:layout_marginBottom="12dp">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/historyDateText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="September 11"
+            android:textSize="14sp"
+            android:textColor="@color/text_secondary"
+            android:fontFamily="@font/bricolage_grotesque" />
+
+        <TextView
+            android:id="@+id/historyTitleText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Chest + Biceps"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:fontFamily="@font/sora_semibold" />
+
+        <TextView
+            android:id="@+id/historyDurationText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="45 min"
+            android:textSize="13sp"
+            android:textColor="@color/text_secondary"
+            android:fontFamily="@font/bricolage_grotesque"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+    <ImageButton
+        android:id="@+id/deleteHistoryButton"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="@android:color/transparent"
+        android:src="@drawable/ic_delete"
+        app:tint="@color/text_secondary"
+        android:contentDescription="Delete workout"
+        xmlns:app="http://schemas.android.com/apk/res-auto" />
+
+</LinearLayout>

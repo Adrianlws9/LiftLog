@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@+id/nav_history" android:title="History" />
+    <item android:id="@+id/nav_plan" android:title="Workout Plan" />
+    <item android:id="@+id/nav_custom" android:title="Custom Workout" />
+    <item android:id="@+id/nav_summary" android:title="Monthly Summary" />
+    <item android:id="@+id/nav_backup" android:title="Backup &amp; Restore" />
+    <item android:id="@+id/nav_bodyweight" android:title="Body Weight" />
+    <item android:id="@+id/nav_progress" android:title="Exercise Progress" />
+</menu>

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@color/surface"
+    android:padding="16dp"
+    android:layout_marginBottom="16dp">
+
+    <TextView
+        android:id="@+id/exerciseNameText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Exercise Name"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:fontFamily="@font/sora_semibold" />
+
+    <TextView
+        android:id="@+id/lastTimeLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="LAST TIME"
+        android:textSize="11sp"
+        android:textColor="@color/text_secondary"
+        android:letterSpacing="0.1"
+        android:fontFamily="@font/bricolage_grotesque"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/lastTimeSetsText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:textSize="14sp"
+        android:textColor="@color/text_secondary"
+        android:fontFamily="@font/bricolage_grotesque"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/setsContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginTop="8dp" />
+
+    <Button
+        android:id="@+id/addSetButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="+ ADD SET"
+        android:textColor="@color/primary"
+        android:fontFamily="@font/bricolage_grotesque"
+        style="?android:attr/borderlessButtonStyle" />
+
+</LinearLayout>

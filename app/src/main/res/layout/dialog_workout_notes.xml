@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@color/surface"
+    android:padding="20dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Workout Notes"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:textColor="@color/text_primary"
+        android:fontFamily="@font/sora_semibold" />
+
+    <EditText
+        android:id="@+id/notesDialogInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:hint="Notes about this workout"
+        android:inputType="textMultiLine"
+        android:minLines="5"
+        android:gravity="top|start"
+        android:background="@color/background"
+        android:padding="12dp"
+        android:textColor="@color/text_primary"
+        android:textColorHint="@color/text_secondary"
+        android:fontFamily="@font/bricolage_grotesque" />
+
+    <Button
+        android:id="@+id/notesDialogDoneButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="DONE"
+        android:textColor="@color/primary"
+        android:fontFamily="@font/bricolage_grotesque"
+        style="?android:attr/borderlessButtonStyle" />
+
+</LinearLayout>

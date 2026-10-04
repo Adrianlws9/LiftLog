@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <array name="preloaded_fonts" translatable="false">
+        <item>@font/bricolage_grotesque</item>
+        <item>@font/manrope</item>
+        <item>@font/sora_semibold</item>
+    </array>
+</resources>
