@@ -15,6 +15,9 @@ import com.adrian.liftlog.databinding.ActivityMainBinding
 import com.adrian.liftlog.model.DefaultWorkoutPlan
 import com.adrian.liftlog.ui.PlanDayViewModel
 import java.util.Calendar
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
+import com.adrian.liftlog.ui.PlanViewModel
 
 class MainActivity : AppCompatActivity() {
 
@@ -22,6 +25,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var viewModel: PlanDayViewModel
     private var todaysDayOfWeek: Int = -1
     private lateinit var drawerToggle: ActionBarDrawerToggle
+    private lateinit var planViewModel: PlanViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -46,6 +50,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         viewModel = ViewModelProvider(this)[PlanDayViewModel::class.java]
+        planViewModel = ViewModelProvider(this)[PlanViewModel::class.java]
         todaysDayOfWeek = Calendar.getInstance().get(Calendar.DAY_OF_WEEK)
 
         viewModel.day.observe(this) { day ->
@@ -79,6 +84,7 @@ class MainActivity : AppCompatActivity() {
             R.id.nav_backup -> startActivity(Intent(this, BackupActivity::class.java))
             R.id.nav_bodyweight -> startActivity(Intent(this, BodyWeightActivity::class.java))
             R.id.nav_progress -> startActivity(Intent(this, ExerciseProgressActivity::class.java))
+            R.id.nav_other_day -> showAnotherDayPicker()
         }
         binding.drawerLayout.closeDrawer(GravityCompat.START)
         return true
@@ -110,11 +116,48 @@ class MainActivity : AppCompatActivity() {
     private fun startWorkout(exerciseNames: List<String>) {
         val dayName = DefaultWorkoutPlan.dayNameFor(todaysDayOfWeek)
         val title = binding.workoutTitleText.text.toString()
+        launchWorkout(dayName, title, exerciseNames)
+    }
 
+    private fun launchWorkout(dayName: String, title: String, exerciseNames: List<String>) {
         val intent = Intent(this, WorkoutActivity::class.java)
         intent.putExtra("day_name", dayName)
         intent.putExtra("workout_title", title)
         intent.putExtra("exercise_names", exerciseNames.toTypedArray())
         startActivity(intent)
+    }
+
+    private fun showAnotherDayPicker() {
+        planViewModel.loadDaysOnce { days ->
+            // Only days with an actual workout, ordered Monday first
+            val workoutDays = days
+                .filter { !it.isRestDay }
+                .sortedBy { (it.dayOfWeek + 5) % 7 }
+
+            if (workoutDays.isEmpty()) {
+                Toast.makeText(this, "No workout days in your plan", Toast.LENGTH_SHORT).show()
+                return@loadDaysOnce
+            }
+
+            val labels = workoutDays.map {
+                val dayLabel = DefaultWorkoutPlan.dayNameFor(it.dayOfWeek)
+                    .lowercase().replaceFirstChar { c -> c.uppercase() }
+                "$dayLabel — ${it.title}"
+            }.toTypedArray()
+
+            AlertDialog.Builder(this)
+                .setTitle("Do which day's workout?")
+                .setItems(labels) { _, index ->
+                    val chosen = workoutDays[index]
+                    planViewModel.loadExercisesForDay(chosen.dayOfWeek) { names ->
+                        launchWorkout(
+                            dayName = DefaultWorkoutPlan.dayNameFor(todaysDayOfWeek),
+                            title = chosen.title,
+                            exerciseNames = names
+                        )
+                    }
+                }
+                .show()
+        }
     }
 }

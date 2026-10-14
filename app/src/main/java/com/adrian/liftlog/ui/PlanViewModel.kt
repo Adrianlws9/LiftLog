@@ -21,4 +21,16 @@ class PlanViewModel(application: Application) : AndroidViewModel(application) {
             _days.value = repository.getAllPlanDays()
         }
     }
+
+    fun loadDaysOnce(onLoaded: (List<PlanDayEntity>) -> Unit) {
+        viewModelScope.launch {
+            onLoaded(repository.getAllPlanDays())
+        }
+    }
+
+    fun loadExercisesForDay(dayOfWeek: Int, onLoaded: (List<String>) -> Unit) {
+        viewModelScope.launch {
+            onLoaded(repository.getExercisesForDay(dayOfWeek).map { it.name })
+        }
+    }
 }
