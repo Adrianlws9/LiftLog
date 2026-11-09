@@ -49,7 +49,12 @@ interface LoggedExerciseDao {
         """
         SELECT le.* FROM logged_exercises le
         INNER JOIN workouts w ON le.workoutId = w.id
-        WHERE le.exerciseName = :exerciseName AND w.id != :excludeWorkoutId
+        WHERE le.exerciseName = :exerciseName COLLATE NOCASE
+          AND w.id != :excludeWorkoutId
+          AND EXISTS (
+              SELECT 1 FROM logged_sets ls
+              WHERE ls.exerciseId = le.id AND (ls.reps > 0 OR ls.weight IS NOT NULL)
+          )
         ORDER BY w.dateEpochMillis DESC
         LIMIT 1
         """

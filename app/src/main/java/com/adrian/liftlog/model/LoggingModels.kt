@@ -70,3 +70,15 @@ fun Double.toKg(unit: WeightUnit): Double {
         else -> this
     }
 }
+
+/** True if at least one set has a weight or reps entered, meaning the exercise was actually performed. */
+fun LoggedExercise.hasLoggedData(): Boolean = sets.any { it.reps > 0 || it.weight != null }
+
+/** Formats seconds as "05:32", or "1:05:32" once past an hour. */
+fun formatClock(totalSeconds: Long): String {
+    val h = totalSeconds / 3600
+    val m = (totalSeconds % 3600) / 60
+    val s = totalSeconds % 60
+    return if (h > 0) String.format("%d:%02d:%02d", h, m, s)
+    else String.format("%02d:%02d", m, s)
+}

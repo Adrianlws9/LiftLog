@@ -10,6 +10,7 @@ import com.adrian.liftlog.model.WorkoutHistoryDetail
 import com.adrian.liftlog.model.PersonalBest
 import com.adrian.liftlog.model.MonthlySummary
 import com.adrian.liftlog.model.toKg
+import com.adrian.liftlog.model.hasLoggedData
 
 class WorkoutRepository(context: Context) {
 
@@ -37,7 +38,7 @@ class WorkoutRepository(context: Context) {
             )
         )
 
-        for ((exerciseOrder, exercise) in exercises.withIndex()) {
+        for ((exerciseOrder, exercise) in exercises.filter { it.hasLoggedData() }.withIndex()) {
             val exerciseId = database.loggedExerciseDao().insertExercise(
                 LoggedExerciseEntity(
                     workoutId = workoutId,
@@ -196,7 +197,7 @@ class WorkoutRepository(context: Context) {
         database.workoutDao().updateWorkoutDetails(workoutId, title, notes)
         database.loggedExerciseDao().deleteExercisesForWorkout(workoutId)
 
-        for ((exerciseOrder, exercise) in exercises.withIndex()) {
+        for ((exerciseOrder, exercise) in exercises.filter { it.hasLoggedData() }.withIndex()) {
             val exerciseId = database.loggedExerciseDao().insertExercise(
                 LoggedExerciseEntity(
                     workoutId = workoutId,
