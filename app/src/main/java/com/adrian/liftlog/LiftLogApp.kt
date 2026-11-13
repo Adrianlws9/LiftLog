@@ -32,6 +32,7 @@ class LiftLogApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        ActiveWorkoutSession.init(this)
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
             override fun onActivityResumed(activity: Activity) = syncBar(activity)
 

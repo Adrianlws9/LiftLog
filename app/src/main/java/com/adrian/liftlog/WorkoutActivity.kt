@@ -63,6 +63,9 @@ class WorkoutActivity : AppCompatActivity() {
     private val timerRunnable = object : Runnable {
         override fun run() {
             updateTimerDisplay()
+            if (!isEditMode && ActiveWorkoutSession.elapsedSeconds() % 15 == 0L) {
+                ActiveWorkoutSession.saveDraft()
+            }
             timerHandler.postDelayed(this, 1000)
         }
     }
@@ -395,6 +398,11 @@ class WorkoutActivity : AppCompatActivity() {
         if (!isEditMode) {
             binding.workoutTimerText.text = formatClock(ActiveWorkoutSession.elapsedSeconds())
         }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        if (!isEditMode) ActiveWorkoutSession.saveDraft()
     }
 
     override fun onDestroy() {
