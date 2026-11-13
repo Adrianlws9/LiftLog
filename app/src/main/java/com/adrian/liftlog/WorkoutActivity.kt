@@ -1,11 +1,21 @@
 package com.adrian.liftlog
 
 import android.Manifest
+import android.app.AlarmManager
+import android.app.Dialog
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
+import android.view.Menu
+import android.view.MenuItem
+import android.view.ViewGroup
+import android.view.WindowManager
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -14,72 +24,52 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.adrian.liftlog.adapter.ExerciseAdapter
 import com.adrian.liftlog.databinding.ActivityWorkoutBinding
+import com.adrian.liftlog.databinding.DialogWorkoutNotesBinding
 import com.adrian.liftlog.model.LoggedExercise
+import com.adrian.liftlog.model.PersonalBest
+import com.adrian.liftlog.model.formatClock
 import com.adrian.liftlog.service.BreakTimerService
+import com.adrian.liftlog.session.ActiveWorkoutSession
 import com.adrian.liftlog.ui.EditWorkoutViewModel
 import com.adrian.liftlog.ui.WorkoutViewModel
-import android.app.Dialog
-import android.graphics.drawable.ColorDrawable
-import android.graphics.Color
-import android.view.Menu
-import android.view.MenuItem
-import android.view.WindowManager
-import android.view.ViewGroup
-import com.adrian.liftlog.databinding.DialogWorkoutNotesBinding
-import androidx.activity.OnBackPressedCallback
-import android.app.AlarmManager
-import android.provider.Settings
 
 class WorkoutActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityWorkoutBinding
-    private val loggedExercises = mutableListOf<LoggedExercise>()
     private lateinit var adapter: ExerciseAdapter
-
     private lateinit var workoutViewModel: WorkoutViewModel
     private lateinit var editViewModel: EditWorkoutViewModel
 
     private var isEditMode = false
     private var editWorkoutId: Long = -1L
-    private var currentNotes: String? = null
+    private val editExercises = mutableListOf<LoggedExercise>()
+    private var editNotes: String? = null
+    private var editTitle: String = "Workout"
 
-    private lateinit var dayName: String
-    private lateinit var workoutTitle: String
+    private var personalBests: Map<String, PersonalBest> = emptyMap()
+
+    /** Logging mode uses the app-wide session; edit mode uses its own local list. */
+    private val loggedExercises: MutableList<LoggedExercise>
+        get() = if (isEditMode) editExercises else ActiveWorkoutSession.exercises
+
+    private var currentNotes: String?
+        get() = if (isEditMode) editNotes else ActiveWorkoutSession.notes
+        set(value) {
+            if (isEditMode) editNotes = value else ActiveWorkoutSession.notes = value
+        }
 
     private val timerHandler = Handler(Looper.getMainLooper())
-    private var workoutStartTimeMillis = 0L
-    private var secondsElapsed = 0L
     private var timerRunning = false
-
-    private var personalBests: Map<String, com.adrian.liftlog.model.PersonalBest> = emptyMap()
-
     private val timerRunnable = object : Runnable {
         override fun run() {
-            secondsElapsed = (System.currentTimeMillis() - workoutStartTimeMillis) / 1000
             updateTimerDisplay()
             timerHandler.postDelayed(this, 1000)
         }
     }
 
-    private fun ensureExactAlarmPermission() {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-            val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
-            if (!alarmManager.canScheduleExactAlarms()) {
-                AlertDialog.Builder(this)
-                    .setTitle("Allow exact alarms")
-                    .setMessage("To make sure your break timer reliably vibrates when it ends, LiftLog needs permission to schedule exact alarms.")
-                    .setPositiveButton("Open Settings") { _, _ ->
-                        startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM))
-                    }
-                    .setNegativeButton("Not now", null)
-                    .show()
-            }
-        }
-    }
-
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { /* Not critical if denied — timer still works, just less visible when minimized. */ }
+    ) { }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -89,10 +79,9 @@ class WorkoutActivity : AppCompatActivity() {
 
         setSupportActionBar(binding.workoutToolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
+
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                confirmDiscard()
-            }
+            override fun handleOnBackPressed() = handleLeave()
         })
 
         workoutViewModel = ViewModelProvider(this)[WorkoutViewModel::class.java]
@@ -101,20 +90,196 @@ class WorkoutActivity : AppCompatActivity() {
         editWorkoutId = intent.getLongExtra("edit_workout_id", -1L)
         isEditMode = editWorkoutId != -1L
 
-        dayName = intent.getStringExtra("day_name") ?: "UNKNOWN"
-        workoutTitle = intent.getStringExtra("workout_title") ?: "Workout"
-        binding.workoutScreenTitle.text = workoutTitle
+        if (isEditMode) {
+            editTitle = intent.getStringExtra("workout_title") ?: "Workout"
+            binding.workoutScreenTitle.text = editTitle
+            setUpAdapter()
+            setUpEditMode()
+            return
+        }
 
+        val resume = intent.getBooleanExtra("resume_session", false)
+        when {
+            resume -> {
+                if (ActiveWorkoutSession.isActive) beginLogging(fresh = false) else finish()
+            }
+            ActiveWorkoutSession.isActive -> askResumeOrStartNew()
+            else -> {
+                startFreshSession()
+                beginLogging(fresh = true)
+            }
+        }
+    }
+
+    // ---------- Session handling ----------
+
+    private fun startFreshSession() {
+        ActiveWorkoutSession.start(
+            dayName = intent.getStringExtra("day_name") ?: "UNKNOWN",
+            title = intent.getStringExtra("workout_title") ?: "Workout",
+            exerciseNames = (intent.getStringArrayExtra("exercise_names") ?: arrayOf()).toList()
+        )
+    }
+
+    private fun askResumeOrStartNew() {
+        AlertDialog.Builder(this)
+            .setTitle("Workout already in progress")
+            .setMessage("\"${ActiveWorkoutSession.title}\" is still running. Resume it, or discard it and start this one?")
+            .setCancelable(false)
+            .setPositiveButton("Resume it") { _, _ -> beginLogging(fresh = false) }
+            .setNegativeButton("Discard & start new") { _, _ ->
+                startFreshSession()
+                beginLogging(fresh = true)
+            }
+            .setNeutralButton("Cancel") { _, _ -> finish() }
+            .show()
+    }
+
+    private fun beginLogging(fresh: Boolean) {
+        binding.workoutScreenTitle.text = ActiveWorkoutSession.title
+        setUpAdapter()
+        setUpLoggingMode(fresh)
+    }
+
+    private fun setUpAdapter() {
         adapter = ExerciseAdapter(loggedExercises)
         binding.exerciseRecyclerView.layoutManager = LinearLayoutManager(this)
         binding.exerciseRecyclerView.adapter = adapter
-
-        if (isEditMode) {
-            setUpEditMode()
-        } else {
-            setUpLoggingMode()
-        }
     }
+
+    // ---------- Logging mode ----------
+
+    private fun setUpLoggingMode(fresh: Boolean) {
+        val names = loggedExercises.map { it.exerciseName }
+
+        workoutViewModel.lastPerformances.observe(this) { performances ->
+            adapter = ExerciseAdapter(loggedExercises, performances, personalBests)
+            binding.exerciseRecyclerView.adapter = adapter
+        }
+        workoutViewModel.personalBests.observe(this) { bests ->
+            personalBests = bests
+            adapter = ExerciseAdapter(
+                loggedExercises,
+                workoutViewModel.lastPerformances.value ?: emptyMap(),
+                personalBests
+            )
+            binding.exerciseRecyclerView.adapter = adapter
+        }
+        workoutViewModel.loadLastPerformances(names, excludeWorkoutId = -1L)
+        workoutViewModel.loadPersonalBests(names)
+
+        if (fresh) {
+            workoutViewModel.previousNotes.observe(this) { prev ->
+                if (ActiveWorkoutSession.notes == null) ActiveWorkoutSession.notes = prev
+            }
+            workoutViewModel.loadPreviousNotes(ActiveWorkoutSession.title)
+        }
+
+        binding.finishWorkoutButton.text = "FINISH"
+        binding.finishWorkoutButton.setOnClickListener {
+            AlertDialog.Builder(this)
+                .setTitle("Finish workout?")
+                .setMessage("This will save your workout and end the session.")
+                .setPositiveButton("Finish") { _, _ ->
+                    binding.finishWorkoutButton.isEnabled = false
+                    stopTimer()
+                    workoutViewModel.saveWorkout(
+                        ActiveWorkoutSession.dayName,
+                        ActiveWorkoutSession.title,
+                        ActiveWorkoutSession.exercises,
+                        ActiveWorkoutSession.elapsedSeconds(),
+                        currentNotes
+                    ) {
+                        ActiveWorkoutSession.clear()
+                        finish()
+                    }
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+        }
+
+        binding.breakButton.setOnClickListener { showBreakDurationPicker() }
+        binding.cancelBreakButton.setOnClickListener {
+            stopService(Intent(this, BreakTimerService::class.java))
+        }
+        BreakTimerService.remainingSeconds.observe(this) { updateBreakCard(it) }
+
+        updateTimerDisplay()
+        startTimer()
+        askNotificationPermissionIfNeeded()
+        ensureExactAlarmPermission()
+    }
+
+    // ---------- Edit mode (unchanged behaviour) ----------
+
+    private fun setUpEditMode() {
+        binding.workoutTimerText.visibility = android.view.View.GONE
+        binding.breakButton.visibility = android.view.View.GONE
+
+        editNotes = intent.getStringExtra("existing_notes")
+
+        binding.finishWorkoutButton.text = "SAVE"
+        binding.finishWorkoutButton.setOnClickListener {
+            AlertDialog.Builder(this)
+                .setTitle("Save changes?")
+                .setMessage("This will overwrite the original logged workout.")
+                .setPositiveButton("Save") { _, _ ->
+                    binding.finishWorkoutButton.isEnabled = false
+                    editViewModel.saveEdits(
+                        editWorkoutId, editTitle, editNotes, editExercises
+                    ) { finish() }
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+        }
+
+        editViewModel.existingExercises.observe(this) { exercises ->
+            editExercises.clear()
+            editExercises.addAll(exercises)
+            adapter = ExerciseAdapter(
+                editExercises,
+                onRenameExercise = { position, newName ->
+                    editExercises[position] = editExercises[position].copy(exerciseName = newName)
+                    adapter.notifyItemChanged(position)
+                }
+            )
+            binding.exerciseRecyclerView.adapter = adapter
+        }
+        editViewModel.loadWorkout(editWorkoutId)
+    }
+
+    // ---------- Leaving the screen ----------
+
+    private fun handleLeave() {
+        if (isEditMode) {
+            AlertDialog.Builder(this)
+                .setTitle("Discard changes?")
+                .setMessage("Your edits haven't been saved.")
+                .setPositiveButton("Discard") { _, _ -> finish() }
+                .setNegativeButton("Keep going", null)
+                .show()
+            return
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("Leave workout screen?")
+            .setMessage("Keep it running and tap the bar at the bottom of any screen to come back, or discard everything logged so far.")
+            .setPositiveButton("Keep running") { _, _ -> finish() }
+            .setNegativeButton("Discard workout") { _, _ ->
+                stopTimer()
+                ActiveWorkoutSession.clear()
+                finish()
+            }
+            .setNeutralButton("Stay", null)
+            .show()
+    }
+
+    override fun onSupportNavigateUp(): Boolean {
+        handleLeave()
+        return true
+    }
+
+    // ---------- Notes dialog ----------
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.workout_menu, menu)
@@ -152,105 +317,10 @@ class WorkoutActivity : AppCompatActivity() {
             currentNotes = dialogBinding.notesDialogInput.text.toString().trim().ifEmpty { null }
             dialog.dismiss()
         }
-
         dialog.show()
     }
 
-    private fun setUpLoggingMode() {
-        val exerciseNames = intent.getStringArrayExtra("exercise_names") ?: arrayOf()
-        loggedExercises.clear()
-
-        workoutViewModel.previousNotes.observe(this) { prev ->
-            if (currentNotes == null) {
-                currentNotes = prev
-            }
-        }
-        workoutViewModel.loadPreviousNotes(workoutTitle)
-
-        for (name in exerciseNames) {
-            loggedExercises.add(LoggedExercise(exerciseName = name))
-        }
-        adapter.notifyDataSetChanged()
-
-        workoutViewModel.lastPerformances.observe(this) { performances ->
-            adapter = ExerciseAdapter(loggedExercises, performances, personalBests)
-            binding.exerciseRecyclerView.adapter = adapter
-        }
-        workoutViewModel.personalBests.observe(this) { bests ->
-            personalBests = bests
-            adapter = ExerciseAdapter(loggedExercises, workoutViewModel.lastPerformances.value ?: emptyMap(), personalBests)
-            binding.exerciseRecyclerView.adapter = adapter
-        }
-        workoutViewModel.loadLastPerformances(exerciseNames.toList(), excludeWorkoutId = -1L)
-        workoutViewModel.loadPersonalBests(exerciseNames.toList())
-
-        binding.finishWorkoutButton.text = "FINISH"
-        binding.finishWorkoutButton.setOnClickListener {
-            AlertDialog.Builder(this)
-                .setTitle("Finish workout?")
-                .setMessage("This will save your workout and end the session.")
-                .setPositiveButton("Finish") { _, _ ->
-                    binding.finishWorkoutButton.isEnabled = false
-                    stopTimer()
-                    val notes = currentNotes
-                    workoutViewModel.saveWorkout(
-                        dayName, workoutTitle, loggedExercises, secondsElapsed, notes
-                    ) { finish() }
-                }
-                .setNegativeButton("Cancel", null)
-                .show()
-        }
-
-        binding.breakButton.setOnClickListener { showBreakDurationPicker() }
-        binding.cancelBreakButton.setOnClickListener {
-            stopService(Intent(this, BreakTimerService::class.java))
-        }
-        BreakTimerService.remainingSeconds.observe(this) { remaining ->
-            updateBreakCard(remaining)
-        }
-
-        startTimer()
-        askNotificationPermissionIfNeeded()
-        ensureExactAlarmPermission()
-    }
-
-    private fun setUpEditMode() {
-        // Editing a past workout — no live full-workout timer or break timer needed.
-        binding.workoutTimerText.visibility = android.view.View.GONE
-        binding.breakButton.visibility = android.view.View.GONE
-
-        currentNotes = intent.getStringExtra("existing_notes")
-
-        binding.finishWorkoutButton.text = "SAVE"
-        binding.finishWorkoutButton.setOnClickListener {
-            AlertDialog.Builder(this)
-                .setTitle("Save changes?")
-                .setMessage("This will overwrite the original logged workout.")
-                .setPositiveButton("Save") { _, _ ->
-                    binding.finishWorkoutButton.isEnabled = false
-                    val notes = currentNotes
-                    editViewModel.saveEdits(
-                        editWorkoutId, workoutTitle, notes, loggedExercises
-                    ) { finish() }
-                }
-                .setNegativeButton("Cancel", null)
-                .show()
-        }
-
-        editViewModel.existingExercises.observe(this) { exercises ->
-            loggedExercises.clear()
-            loggedExercises.addAll(exercises)
-            adapter = ExerciseAdapter(
-                loggedExercises,
-                onRenameExercise = { position, newName ->
-                    loggedExercises[position] = loggedExercises[position].copy(exerciseName = newName)
-                    adapter.notifyItemChanged(position)
-                }
-            )
-            binding.exerciseRecyclerView.adapter = adapter
-        }
-        editViewModel.loadWorkout(editWorkoutId)
-    }
+    // ---------- Break timer UI ----------
 
     private fun updateBreakCard(remaining: Int?) {
         if (remaining == null) {
@@ -258,21 +328,16 @@ class WorkoutActivity : AppCompatActivity() {
             return
         }
         binding.breakTimerCard.visibility = android.view.View.VISIBLE
-        val minutes = remaining / 60
-        val seconds = remaining % 60
-        binding.breakTimerText.text = String.format("%d:%02d", minutes, seconds)
+        binding.breakTimerText.text = String.format("%d:%02d", remaining / 60, remaining % 60)
 
         val total = BreakTimerService.totalSeconds.value ?: remaining
-        val progress = if (total > 0) {
-            ((total - remaining).toFloat() / total.toFloat() * 100).toInt()
-        } else 0
-        binding.breakProgressIndicator.progress = progress
+        binding.breakProgressIndicator.progress =
+            if (total > 0) ((total - remaining).toFloat() / total * 100).toInt() else 0
     }
 
     private fun showBreakDurationPicker() {
         val options = arrayOf("30 seconds", "1 minute", "1 minute 30 seconds")
         val secondsValues = intArrayOf(30, 60, 90)
-
         AlertDialog.Builder(this)
             .setTitle("Break duration")
             .setItems(options) { _, index -> startBreakTimer(secondsValues[index]) }
@@ -296,10 +361,27 @@ class WorkoutActivity : AppCompatActivity() {
         }
     }
 
+    private fun ensureExactAlarmPermission() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
+            if (!alarmManager.canScheduleExactAlarms()) {
+                AlertDialog.Builder(this)
+                    .setTitle("Allow exact alarms")
+                    .setMessage("To make sure your break timer reliably vibrates when it ends, LiftLog needs permission to schedule exact alarms.")
+                    .setPositiveButton("Open Settings") { _, _ ->
+                        startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM))
+                    }
+                    .setNegativeButton("Not now", null)
+                    .show()
+            }
+        }
+    }
+
+    // ---------- Workout timer (display only; the clock lives in the session) ----------
+
     private fun startTimer() {
         if (!timerRunning) {
             timerRunning = true
-            workoutStartTimeMillis = System.currentTimeMillis()
             timerHandler.post(timerRunnable)
         }
     }
@@ -310,30 +392,13 @@ class WorkoutActivity : AppCompatActivity() {
     }
 
     private fun updateTimerDisplay() {
-        val minutes = secondsElapsed / 60
-        val seconds = secondsElapsed % 60
-        binding.workoutTimerText.text = String.format("%02d:%02d", minutes, seconds)
+        if (!isEditMode) {
+            binding.workoutTimerText.text = formatClock(ActiveWorkoutSession.elapsedSeconds())
+        }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        stopTimer()
-    }
-
-    override fun onSupportNavigateUp(): Boolean {
-        confirmDiscard()
-        return true
-    }
-
-    private fun confirmDiscard() {
-        AlertDialog.Builder(this)
-            .setTitle(if (isEditMode) "Discard changes?" else "Discard workout?")
-            .setMessage(
-                if (isEditMode) "Your edits haven't been saved."
-                else "Your logged sets haven't been saved. Leaving now will lose them."
-            )
-            .setPositiveButton("Discard") { _, _ -> finish() }
-            .setNegativeButton("Keep going", null)
-            .show()
+        stopTimer() // stops the on-screen ticking only; the session keeps its start time
     }
 }
